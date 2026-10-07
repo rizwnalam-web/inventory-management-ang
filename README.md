@@ -87,6 +87,30 @@ http://localhost:3000
 
 ---
 
+## Running the Native Angular 19 Project (`inventory-management-ang`)
+
+A standalone **native Angular 19 workspace** is included in the `/inventory-management-ang` folder:
+
+```bash
+# Navigate into the native Angular 19 project directory
+cd inventory-management-ang
+
+# Install Angular dependencies
+npm install
+
+# Start the Angular CLI development server
+npm start
+```
+
+This will launch the Angular CLI server on:
+```
+http://localhost:4200
+```
+
+It features pure `@angular/core` **Signals**, standalone components, `provideExperimentalZonelessChangeDetection()`, route-level lazy loading (`loadComponent: () => import(...)`), and the persistent `LiteDatabaseService`.
+
+---
+
 ## Production Build
 
 To build the optimized static production bundle:

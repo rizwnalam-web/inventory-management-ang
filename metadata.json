@@ -1,0 +1,6 @@
+{
+  "name": "Nexus Stock - Inventory Dashboard",
+  "description": "Enterprise-grade inventory management dashboard featuring signal-based reactive state, lazy loading architecture, LiteDatabase persistent storage, and real-time stock control.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

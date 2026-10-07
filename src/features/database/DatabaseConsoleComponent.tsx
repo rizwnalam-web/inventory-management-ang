@@ -6,8 +6,6 @@ import {
   RotateCcw,
   Layers,
   FileJson,
-  ShieldAlert,
-  CheckCircle2,
   HardDrive,
   Activity,
   Search,
@@ -25,16 +23,16 @@ export default function DatabaseConsoleComponent() {
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [auditSearch, setAuditSearch] = useState('');
 
-  const tableData = liteDb.getTableData(activeCollection);
+  const tableData = liteDb.getTableData(activeCollection) || [];
 
   const collectionsList: { key: keyof DatabaseSchema; label: string; count: number }[] = [
-    { key: 'products', label: 'Products (SKUs)', count: metrics.productsCount },
-    { key: 'warehouses', label: 'Facilities & Hubs', count: metrics.warehousesCount },
-    { key: 'stock_movements', label: 'Stock Movements Ledger', count: metrics.movementsCount },
-    { key: 'purchase_orders', label: 'Purchase Orders', count: metrics.ordersCount },
-    { key: 'suppliers', label: 'Suppliers Directory', count: metrics.suppliersCount },
+    { key: 'products', label: 'Products (SKUs)', count: metrics?.productsCount ?? 0 },
+    { key: 'warehouses', label: 'Facilities & Hubs', count: metrics?.warehousesCount ?? 0 },
+    { key: 'stock_movements', label: 'Stock Movements Ledger', count: metrics?.movementsCount ?? 0 },
+    { key: 'purchase_orders', label: 'Purchase Orders', count: metrics?.ordersCount ?? 0 },
+    { key: 'suppliers', label: 'Suppliers Directory', count: metrics?.suppliersCount ?? 0 },
     { key: 'categories', label: 'Categories Taxonomy', count: 6 },
-    { key: 'audit_logs', label: 'Immutable Audit Trail', count: metrics.auditLogsCount },
+    { key: 'audit_logs', label: 'Immutable Audit Trail', count: metrics?.auditLogsCount ?? 0 },
   ];
 
   const handleExport = () => {
@@ -74,15 +72,26 @@ export default function DatabaseConsoleComponent() {
     }
   };
 
-  const filteredLogs = auditLogs.filter((log) => {
+  const filteredLogs = (auditLogs || []).filter((log) => {
+    if (!log) return false;
     if (!auditSearch.trim()) return true;
     const q = auditSearch.toLowerCase();
-    return (
-      log.details.toLowerCase().includes(q) ||
-      log.action.toLowerCase().includes(q) ||
-      log.performedBy.toLowerCase().includes(q)
-    );
+    const details = (log.details || '').toLowerCase();
+    const action = (log.action || '').toLowerCase();
+    const performedBy = (log.performedBy || '').toLowerCase();
+    return details.includes(q) || action.includes(q) || performedBy.includes(q);
   });
+
+  const formatLogDate = (timestamp?: string) => {
+    if (!timestamp) return '-';
+    try {
+      const d = new Date(timestamp);
+      if (isNaN(d.getTime())) return timestamp;
+      return `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+    } catch {
+      return timestamp;
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -241,8 +250,7 @@ export default function DatabaseConsoleComponent() {
               {filteredLogs.map((log) => (
                 <tr key={log.id} className="hover:bg-slate-750 transition-colors">
                   <td className="py-2.5 px-3 font-mono text-slate-400 tabular-nums whitespace-nowrap">
-                    {new Date(log.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' })}{' '}
-                    {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                    {formatLogDate(log.timestamp)}
                   </td>
                   <td className="py-2.5 px-3 font-mono text-[11px] font-semibold text-indigo-400">
                     {log.action}

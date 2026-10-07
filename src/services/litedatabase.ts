@@ -149,7 +149,36 @@ export class LiteDatabase {
     try {
       const stored = localStorage.getItem(DB_STORAGE_KEY);
       if (stored) {
-        this.inMemoryCache = JSON.parse(stored);
+        const parsed = JSON.parse(stored);
+        // Schema normalization & migration for camelCase legacy backups
+        const normalized: DatabaseSchema = {
+          products: Array.isArray(parsed.products) ? parsed.products : [],
+          categories: Array.isArray(parsed.categories) ? parsed.categories : [],
+          warehouses: Array.isArray(parsed.warehouses) ? parsed.warehouses : [],
+          stock_movements: Array.isArray(parsed.stock_movements)
+            ? parsed.stock_movements
+            : Array.isArray(parsed.stockMovements)
+            ? parsed.stockMovements
+            : [],
+          purchase_orders: Array.isArray(parsed.purchase_orders)
+            ? parsed.purchase_orders
+            : Array.isArray(parsed.purchaseOrders)
+            ? parsed.purchaseOrders
+            : [],
+          suppliers: Array.isArray(parsed.suppliers) ? parsed.suppliers : [],
+          audit_logs: Array.isArray(parsed.audit_logs)
+            ? parsed.audit_logs
+            : Array.isArray(parsed.auditLogs)
+            ? parsed.auditLogs
+            : [],
+        };
+
+        if (normalized.products.length === 0 || normalized.warehouses.length === 0) {
+          this.seedInitialData();
+        } else {
+          this.inMemoryCache = normalized;
+          this.persist();
+        }
       } else {
         this.seedInitialData();
       }
@@ -180,7 +209,8 @@ export class LiteDatabase {
     if (!this.inMemoryCache) {
       this.init();
     }
-    return (this.inMemoryCache?.[tableName] as unknown as T[]) || [];
+    const table = this.inMemoryCache?.[tableName];
+    return Array.isArray(table) ? (table as unknown as T[]) : [];
   }
 
   public saveTableData<T>(tableName: keyof DatabaseSchema, data: T[]): void {
@@ -226,10 +256,30 @@ export class LiteDatabase {
   public importBackup(jsonString: string): boolean {
     try {
       const parsed = JSON.parse(jsonString);
-      if (!parsed.products || !parsed.warehouses) {
-        throw new Error('Invalid database format: missing required tables.');
+      if (!parsed.products || !Array.isArray(parsed.products)) {
+        throw new Error('Invalid database format: missing required products table.');
       }
-      this.inMemoryCache = parsed;
+      this.inMemoryCache = {
+        products: Array.isArray(parsed.products) ? parsed.products : [],
+        categories: Array.isArray(parsed.categories) ? parsed.categories : [],
+        warehouses: Array.isArray(parsed.warehouses) ? parsed.warehouses : [],
+        stock_movements: Array.isArray(parsed.stock_movements)
+          ? parsed.stock_movements
+          : Array.isArray(parsed.stockMovements)
+          ? parsed.stockMovements
+          : [],
+        purchase_orders: Array.isArray(parsed.purchase_orders)
+          ? parsed.purchase_orders
+          : Array.isArray(parsed.purchaseOrders)
+          ? parsed.purchaseOrders
+          : [],
+        suppliers: Array.isArray(parsed.suppliers) ? parsed.suppliers : [],
+        audit_logs: Array.isArray(parsed.audit_logs)
+          ? parsed.audit_logs
+          : Array.isArray(parsed.auditLogs)
+          ? parsed.auditLogs
+          : [],
+      };
       this.persist();
       this.logAudit('EXPORT_DATA', 'Database', 'SYSTEM', 'Database imported from external JSON backup.');
       this.notifyChanges();
@@ -250,22 +300,29 @@ export class LiteDatabase {
     const cache = this.inMemoryCache || this.getDefaultSeedData();
     const rawString = JSON.stringify(cache);
     const bytes = new Blob([rawString]).size;
+    const productsCount = cache.products?.length || 0;
+    const movementsCount = cache.stock_movements?.length || 0;
+    const ordersCount = cache.purchase_orders?.length || 0;
+    const warehousesCount = cache.warehouses?.length || 0;
+    const suppliersCount = cache.suppliers?.length || 0;
+    const auditLogsCount = cache.audit_logs?.length || 0;
+
     return {
       totalRecords:
-        cache.products.length +
-        cache.stock_movements.length +
-        cache.purchase_orders.length +
-        cache.warehouses.length +
-        cache.suppliers.length +
-        cache.audit_logs.length,
+        productsCount +
+        movementsCount +
+        ordersCount +
+        warehousesCount +
+        suppliersCount +
+        auditLogsCount,
       storageSizeBytes: bytes,
       storageSizeKb: (bytes / 1024).toFixed(1),
-      productsCount: cache.products.length,
-      movementsCount: cache.stock_movements.length,
-      ordersCount: cache.purchase_orders.length,
-      warehousesCount: cache.warehouses.length,
-      suppliersCount: cache.suppliers.length,
-      auditLogsCount: cache.audit_logs.length,
+      productsCount,
+      movementsCount,
+      ordersCount,
+      warehousesCount,
+      suppliersCount,
+      auditLogsCount,
       version: '1.2.0-LITEDB',
       engine: 'In-Memory Indexed IndexedDB/LocalStorage Adapter',
     };
